@@ -65,16 +65,16 @@ declare global {
 }
 
 const searchSuggestions = [
-  { name: "Pine Street Market", detail: "Grocery · 4.7 · 0.8 mi", icon: ParkingCircle, accent: "amber" },
-  { name: "Laurel Café", detail: "Coffee · 4.8 · 1.2 mi", icon: Star, accent: "rose" },
-  { name: "Home", detail: "82 Willow Lane · 12 min", icon: HomeIcon, accent: "blue" },
-  { name: "Work", detail: "Northstar Studio · 22 min", icon: BriefcaseBusiness, accent: "violet" },
+  { name: "Nearby businesses", detail: "Live places and ratings appear here", icon: ParkingCircle, accent: "amber" },
+  { name: "Search for a café", detail: "Live business results and ratings", icon: Star, accent: "rose" },
+  { name: "Home", detail: "Add a home address", icon: HomeIcon, accent: "blue" },
+  { name: "Work", detail: "Add a work address", icon: BriefcaseBusiness, accent: "violet" },
 ];
 
 const savedPlaces: Record<SavedTab, { title: string; address: string; eta: string; distance: string }> = {
-  home: { title: "Home", address: "82 Willow Lane", eta: "12 min", distance: "5.2 mi" },
-  work: { title: "Work", address: "Northstar Studio", eta: "22 min", distance: "9.8 mi" },
-  favorites: { title: "Lakeview trailhead", address: "Juniper Loop, North District", eta: "18 min", distance: "7.4 mi" },
+  home: { title: "Home", address: "Add a home address", eta: "—", distance: "—" },
+  work: { title: "Work", address: "Add a work address", eta: "—", distance: "—" },
+  favorites: { title: "Favorites", address: "Save a place from search", eta: "—", distance: "—" },
 };
 
 const priorityOptions: Array<{ value: Priority; label: string; caption: string; color: string }> = [
@@ -95,12 +95,11 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [savedTab, setSavedTab] = useState<SavedTab>("home");
-  const [routeDestination, setRouteDestination] = useState(savedPlaces.home.title);
+  const [routeDestination, setRouteDestination] = useState("a destination");
   const [reportOpen, setReportOpen] = useState(false);
   const [reportType, setReportType] = useState<ReportType>("police");
   const [priority, setPriority] = useState<Priority>("1");
   const [reportNote, setReportNote] = useState("");
-  const [confirmOpen, setConfirmOpen] = useState(true);
   const [voiceActive, setVoiceActive] = useState(false);
   const [assistantNote, setAssistantNote] = useState("Try saying “Hey Gemini, take me to a café”");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -184,7 +183,7 @@ export default function Home() {
 
   const submitDriverReport = () => {
     submitReport.mutate(
-      { type: reportType, priority, note: reportNote || undefined, location: "Willow Lane & Pine Street" },
+      { type: reportType, priority, note: reportNote || undefined, location: "Current map location" },
       {
         onSuccess: () => {
           setReportOpen(false);
@@ -232,8 +231,8 @@ export default function Home() {
             <SlidersHorizontal size={19} />
             <span>Settings</span>
           </button>
-          <div className="profile-chip" aria-label="Alex Morgan">
-            AM
+          <div className="profile-chip" aria-label="Your profile">
+            You
           </div>
         </div>
       </aside>
@@ -246,13 +245,13 @@ export default function Home() {
             </button>
             <div>
               <p className="eyebrow">Saturday, September 21</p>
-              <h1>Good morning, Alex<span className="period">.</span></h1>
+              <h1>Good morning<span className="period">.</span></h1>
             </div>
           </div>
           <div className="topbar__actions">
             <div className="traffic-status"><span className="traffic-dot" /> Live traffic</div>
             <button type="button" className="icon-button" aria-label="Notifications" onClick={() => toast.info("No new route alerts") }><Bell size={18} /></button>
-            <button type="button" className="profile-button" onClick={() => toast.info("Profile settings are coming next") }><span>AM</span><ChevronDown size={14} /></button>
+            <button type="button" className="profile-button" onClick={() => toast.info("Profile settings are coming next") }><span>You</span><ChevronDown size={14} /></button>
           </div>
         </header>
 
@@ -267,8 +266,8 @@ export default function Home() {
                 <div className="map-road map-road--two" />
                 <div className="map-road map-road--three" />
                 <div className="map-road map-road--four" />
-                <span className="map-street street--one">Willow Lane</span>
-                <span className="map-street street--two">Pine Street</span>
+                <span className="map-street street--one">Main road</span>
+                <span className="map-street street--two">Market Street</span>
                 <span className="map-street street--three">Baxter Ave</span>
                 <span className="map-street street--four">Juniper Loop</span>
                 <div className="map-park map-park--one">Riverside Park</div>
@@ -281,20 +280,6 @@ export default function Home() {
                 onMapReady={map => {
                   const trafficLayer = new google.maps.TrafficLayer();
                   trafficLayer.setMap(map);
-                  const route = new google.maps.Polyline({
-                    path: [
-                      { lat: 37.7883, lng: -122.4192 },
-                      { lat: 37.7846, lng: -122.4141 },
-                      { lat: 37.7813, lng: -122.4104 },
-                      { lat: 37.7776, lng: -122.4036 },
-                      { lat: 37.7732, lng: -122.3982 },
-                    ],
-                    strokeColor: "#3b62d6",
-                    strokeOpacity: 0.9,
-                    strokeWeight: 5,
-                    map,
-                  });
-                  return route;
                 }}
               />
 
@@ -346,15 +331,11 @@ export default function Home() {
 
               <div className="map-current-location"><span className="location-pulse" /><span>You are here</span></div>
 
-              <div className="map-incident-marker marker--police"><ShieldAlert size={14} /></div>
-              <div className="map-incident-marker marker--crash"><CarFront size={14} /></div>
-              <div className="map-pin-label pin-label--market"><MapPin size={16} fill="currentColor" /> Pine Street Market</div>
-
               <div className="route-card">
                 <div className="route-card__heading"><div><span className="route-kicker">Fastest route</span><strong>To {routeDestination}</strong></div><div className="route-eta"><b>{activePlace.eta}</b><span>{activePlace.distance}</span></div></div>
                 <div className="route-card__meter"><span style={{ width: "68%" }} /><i /></div>
-                <div className="route-card__meta"><span><Clock3 size={14} /> Arrive by 9:42 AM</span><span className="route-good"><ArrowDownRight size={14} /> 6 min faster</span></div>
-                <button type="button" className="route-start" onClick={() => toast.success(`Navigating to ${routeDestination}`)}><Navigation size={16} fill="currentColor" /> Start route</button>
+                <div className="route-card__meta"><span><Clock3 size={14} /> ETA updates with traffic</span><span className="route-good"><ArrowDownRight size={14} /> Live route</span></div>
+                <button type="button" className="route-start" onClick={() => routeDestination === "a destination" ? toast.info("Search for a place first to preview a route") : toast.success(`Route preview ready for ${routeDestination}`)}><Navigation size={16} fill="currentColor" /> Preview route</button>
               </div>
 
               <button type="button" className="report-fab" onClick={() => setReportOpen(true)}><AlertTriangle size={16} /><span>Report something</span><span className="report-fab__shortcut">R</span></button>
@@ -366,10 +347,10 @@ export default function Home() {
 
             <div className="smart-route-card">
               <div className="smart-route-card__top"><div className="smart-route-icon"><Zap size={17} fill="currentColor" /></div><span>Smart route</span><span className="smart-route-live">LIVE</span></div>
-              <strong>Beat the rush to work</strong>
-              <p>Leave by <b>8:38 AM</b> to arrive before your first meeting.</p>
+              <strong>Add a destination to get moving</strong>
+              <p>Search for a place or save Home and Work to see an accurate route.</p>
               <div className="route-mini-bar"><span /><span /><span /><span /><span /></div>
-              <div className="smart-route-card__footer"><span><Gauge size={14} /> 24 min</span><span>Traffic is building</span></div>
+              <div className="smart-route-card__footer"><span><Gauge size={14} /> Ready when you are</span><span>Live traffic on</span></div>
             </div>
 
             <div className="saved-section">
@@ -377,13 +358,13 @@ export default function Home() {
               <div className="saved-tabs" role="tablist" aria-label="Saved destinations">
                 {(["home", "work", "favorites"] as SavedTab[]).map(tab => <button type="button" key={tab} className={savedTab === tab ? "is-selected" : ""} onClick={() => setSavedTab(tab)} role="tab" aria-selected={savedTab === tab}>{tab === "home" ? <HomeIcon size={15} /> : tab === "work" ? <BriefcaseBusiness size={15} /> : <Heart size={15} />}<span>{tab === "favorites" ? "Favorites" : tab[0].toUpperCase() + tab.slice(1)}</span></button>)}
               </div>
-              <button type="button" className="saved-place" onClick={() => selectDestination(activePlace.title)}><span className="saved-place__icon"><MapPin size={17} /></span><span><strong>{activePlace.title}</strong><small>{activePlace.address}</small></span><span className="saved-place__eta"><b>{activePlace.eta}</b><small>{activePlace.distance}</small></span></button>
+              <button type="button" className="saved-place" onClick={() => activePlace.address.startsWith("Add") || activePlace.address.startsWith("Save") ? toast.info(`Search for an address to set ${activePlace.title}`) : selectDestination(activePlace.title)}><span className="saved-place__icon"><MapPin size={17} /></span><span><strong>{activePlace.title}</strong><small>{activePlace.address}</small></span><span className="saved-place__eta"><b>{activePlace.eta}</b><small>{activePlace.distance}</small></span></button>
             </div>
 
             <div className="incident-card">
-              <div className="incident-card__header"><span className="incident-card__icon"><ShieldAlert size={16} /></span><div><span className="eyebrow">Reported 3 min ago</span><strong>Police ahead</strong></div><span className="incident-live"><span /> Live</span></div>
-              <p>Willow Lane near Pine Street</p>
-              <div className="incident-card__actions"><button type="button" onClick={() => setConfirmOpen(false)}><Check size={15} /> Still there</button><button type="button" onClick={() => { setConfirmOpen(false); toast.success("Thanks for keeping the map current"); }}><X size={15} /> Gone</button></div>
+              <div className="incident-card__header"><span className="incident-card__icon"><ShieldAlert size={16} /></span><div><span className="eyebrow">Driver reports</span><strong>No nearby reports yet</strong></div></div>
+              <p>Reports from drivers will appear here as you move.</p>
+              <div className="incident-card__actions"><button type="button" onClick={() => setReportOpen(true)}><Flag size={15} /> Add a report</button></div>
             </div>
 
             <div className="priority-card"><div className="priority-card__top"><span className="priority-badge">3</span><div><strong>Priority lane</strong><small>Be considerate, keep moving</small></div><Volume2 size={16} /></div><p>Drivers with a lower priority number may request a pass. Motion will say: <em>“Let the white Tesla behind you pass.”</em></p><button type="button" onClick={() => setReportOpen(true)}>Set your driving priority <ArrowUpRight size={15} /></button></div>
@@ -393,10 +374,6 @@ export default function Home() {
 
       <nav className="mobile-nav" aria-label="Mobile navigation"><button type="button" className="is-active"><Map size={18} /><span>Map</span></button><button type="button" onClick={() => toast.info("Saved places are in the right panel")}><Bookmark size={18} /><span>Saved</span></button><button type="button" onClick={() => setReportOpen(true)}><AlertTriangle size={18} /><span>Report</span></button><button type="button" onClick={handleVoice} className={voiceActive ? "is-listening" : ""}><Mic size={18} /><span>Voice</span></button></nav>
 
-      {confirmOpen && (
-        <div className="confirm-toast"><div className="confirm-toast__icon"><ShieldAlert size={17} /></div><div><strong>Police report nearby</strong><span>Willow Lane · 0.4 mi ahead</span></div><button type="button" onClick={() => setConfirmOpen(false)} aria-label="Dismiss report"><X size={16} /></button></div>
-      )}
-
       {reportOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Report an incident">
           <div className="report-modal"><div className="modal-heading"><div><span className="eyebrow">Driver report</span><h2>What’s happening ahead?</h2></div><button type="button" className="icon-button" onClick={() => setReportOpen(false)} aria-label="Close report dialog"><X size={18} /></button></div>
@@ -404,7 +381,7 @@ export default function Home() {
             <label className="field-label">Priority for this trip <span>Lower number gets the pass request first</span></label>
             <div className="priority-options">{priorityOptions.map(option => <button type="button" key={option.value} className={priority === option.value ? "is-selected" : ""} onClick={() => setPriority(option.value)}><span className="priority-option-number" style={{ background: option.color }}>{option.value}</span><span><strong>{option.label}</strong><small>{option.caption}</small></span></button>)}</div>
             <label className="field-label" htmlFor="report-note">Add a note <span>Optional</span></label><textarea id="report-note" value={reportNote} onChange={event => setReportNote(event.target.value)} placeholder="e.g. blocking the right lane" rows={2} />
-            <div className="modal-footer"><span><MapPin size={14} /> Willow Lane &amp; Pine Street</span><button type="button" className="route-start" onClick={submitDriverReport} disabled={submitReport.isPending}><Flag size={16} /> {submitReport.isPending ? "Sharing…" : "Share report"}</button></div>
+            <div className="modal-footer"><span><MapPin size={14} /> Current map location</span><button type="button" className="route-start" onClick={submitDriverReport} disabled={submitReport.isPending}><Flag size={16} /> {submitReport.isPending ? "Sharing…" : "Share report"}</button></div>
           </div>
         </div>
       )}
