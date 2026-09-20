@@ -42,6 +42,7 @@ import { trpc } from "@/lib/trpc";
 type SavedTab = "home" | "work" | "favorites";
 type ReportType = "police" | "crash" | "obstacle" | "hazard";
 type Priority = "3" | "2" | "1";
+type LocationStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable";
 
 type SpeechRecognitionLike = {
   lang: string;
@@ -102,7 +103,11 @@ export default function Home() {
   const [reportNote, setReportNote] = useState("");
   const [voiceActive, setVoiceActive] = useState(false);
   const [assistantNote, setAssistantNote] = useState("Try saying “Hey Gemini, take me to a café”");
+  const [locationPromptOpen, setLocationPromptOpen] = useState(true);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
+  const [mapReady, setMapReady] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const parseIntent = trpc.assistant.parseIntent.useMutation();
   const submitReport = trpc.reports.submit.useMutation();
 
@@ -113,6 +118,27 @@ export default function Home() {
   }, [query]);
 
   const activePlace = savedPlaces[savedTab];
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("unavailable");
+      return;
+    }
+    setLocationStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const center = { lat: position.coords.latitude, lng: position.coords.longitude };
+        mapRef.current?.setCenter(center);
+        mapRef.current?.setZoom(15);
+        setLocationStatus("granted");
+        setLocationPromptOpen(false);
+        setAssistantNote("Location ready — search for a destination when you’re ready.");
+        toast.success("Location ready");
+      },
+      error => setLocationStatus(error.code === 1 ? "denied" : "unavailable"),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  };
 
   const selectDestination = (destination: string) => {
     setRouteDestination(destination);
@@ -258,7 +284,7 @@ export default function Home() {
         <section className="workspace">
           <div className="map-shell">
             <div className="map-surface">
-              <div className="map-fallback" aria-hidden="true">
+              <div className={`map-fallback ${mapReady ? "map-fallback--hidden" : ""}`} aria-hidden="true">
                 <div className="map-grid map-grid--vertical" />
                 <div className="map-grid map-grid--horizontal" />
                 <div className="map-river" />
@@ -274,14 +300,24 @@ export default function Home() {
                 <div className="map-park map-park--two">North Commons</div>
               </div>
               <MapView
-                className="absolute inset-0 z-[1] !h-full opacity-[0.82] mix-blend-multiply"
+                className="absolute inset-0 z-[1] !h-full"
                 initialCenter={{ lat: 37.7817, lng: -122.4071 }}
                 initialZoom={13}
                 onMapReady={map => {
+                  mapRef.current = map;
+                  setMapReady(true);
                   const trafficLayer = new google.maps.TrafficLayer();
                   trafficLayer.setMap(map);
                 }}
               />
+
+              {locationPromptOpen && (
+                <div className="location-permission-card">
+                  <div className="location-permission-card__icon"><Crosshair size={18} /></div>
+                  <div className="location-permission-card__copy"><strong>Use your location</strong><span>{locationStatus === "denied" ? "Location access was blocked. You can try again or continue with the map." : locationStatus === "unavailable" ? "Your browser could not provide a location. You can continue with the map." : "Motion uses your location to show the right traffic and route context."}</span></div>
+                  <div className="location-permission-card__actions"><button type="button" className="location-use-button" onClick={requestLocation} disabled={locationStatus === "requesting"}>{locationStatus === "requesting" ? "Finding you…" : "Allow location"}</button><button type="button" className="location-skip-button" onClick={() => setLocationPromptOpen(false)}>Not now</button></div>
+                </div>
+              )}
 
               <div className="map-topbar">
                 <div className="traffic-summary"><span className="traffic-dot" /> Moderate traffic <span className="summary-divider" /> <span>+6 min</span></div>
