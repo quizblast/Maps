@@ -113,10 +113,15 @@ export default function Home() {
 
   const filteredSuggestions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return searchSuggestions;
+
+    if (!normalized) {
+      return searchSuggestions;
+    }
+
     return searchSuggestions.filter(item => `${item.name} ${item.detail}`.toLowerCase().includes(normalized));
   }, [query]);
 
+  const shouldShowSuggestions = searchOpen || query.trim().length > 0;
   const activePlace = savedPlaces[savedTab];
 
   const requestLocation = () => {
@@ -314,8 +319,8 @@ export default function Home() {
               {locationPromptOpen && (
                 <div className="location-permission-card">
                   <div className="location-permission-card__icon"><Crosshair size={18} /></div>
-                  <div className="location-permission-card__copy"><strong>Use your location</strong><span>{locationStatus === "denied" ? "Location access was blocked. You can try again or continue with the map." : locationStatus === "unavailable" ? "Your browser could not provide a location. You can continue with the map." : "Motion uses your location to show the right traffic and route context."}</span></div>
-                  <div className="location-permission-card__actions"><button type="button" className="location-use-button" onClick={requestLocation} disabled={locationStatus === "requesting"}>{locationStatus === "requesting" ? "Finding you…" : "Allow location"}</button><button type="button" className="location-skip-button" onClick={() => setLocationPromptOpen(false)}>Not now</button></div>
+                  <div className="location-permission-card__copy"><strong>Use your location</strong><span>{locationStatus === "denied" ? "Location access was blocked. You can try again or continue without it." : "Let us find the fastest route from where you are."}</span></div>
+                  <div className="location-permission-card__actions"><button type="button" className="location-use-button" onClick={requestLocation} disabled={locationStatus === "requesting"}>{locationStatus === "requesting" ? "Waiting..." : "Use my location"}</button><button type="button" className="location-skip-button" onClick={() => setLocationPromptOpen(false)}>Maybe later</button></div>
                 </div>
               )}
 
@@ -330,7 +335,11 @@ export default function Home() {
                   <input
                     value={query}
                     onFocus={() => setSearchOpen(true)}
-                    onChange={event => { setQuery(event.target.value); setSearchOpen(true); }}
+                    onBlur={() => window.setTimeout(() => setSearchOpen(false), 150)}
+                    onChange={event => {
+                      setQuery(event.target.value);
+                      setSearchOpen(true);
+                    }}
                     onKeyDown={event => { if (event.key === "Enter" && query.trim()) selectDestination(query.trim()); }}
                     placeholder="Where to?"
                     aria-label="Search places and addresses"
@@ -340,7 +349,7 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="search-assist"><Sparkles size={14} /> {assistantNote}</div>
-                {searchOpen && (
+                {shouldShowSuggestions && (
                   <div className="search-suggestions">
                     <div className="suggestions-heading"><span>Suggested for you</span><button type="button" onClick={() => setSearchOpen(false)} aria-label="Close suggestions"><X size={15} /></button></div>
                     {filteredSuggestions.length ? filteredSuggestions.map(item => {
@@ -352,7 +361,7 @@ export default function Home() {
                           <ArrowUpRight size={16} />
                         </button>
                       );
-                    }) : <button type="button" className="suggestion-row" onClick={() => selectDestination(query)}><span className="suggestion-icon suggestion-icon--blue"><MapPin size={16} /></span><span><strong>Search for “{query}”</strong><small>Use Gemini to find the best match</small></span><ArrowUpRight size={16} /></button>}
+                    }) : <button type="button" className="suggestion-row" onClick={() => selectDestination(query)}><span className="suggestion-icon suggestion-icon--blue"><MapPin size={16} /></span><span><strong>Search for “{query}”</strong><small>Find a place or address</small></span><ArrowUpRight size={16} /></button>}
                   </div>
                 )}
               </div>
@@ -368,10 +377,12 @@ export default function Home() {
               <div className="map-current-location"><span className="location-pulse" /><span>You are here</span></div>
 
               <div className="route-card">
-                <div className="route-card__heading"><div><span className="route-kicker">Fastest route</span><strong>To {routeDestination}</strong></div><div className="route-eta"><b>{activePlace.eta}</b><span>{activePlace.distance}</span></div></div>
+                <div className="route-card__heading"><div><span className="route-kicker">Fastest route</span><strong>To {routeDestination}</strong></div><div className="route-eta"><b>{activePlace.eta}</b><small>{activePlace.distance}</small></div></div>
                 <div className="route-card__meter"><span style={{ width: "68%" }} /><i /></div>
                 <div className="route-card__meta"><span><Clock3 size={14} /> ETA updates with traffic</span><span className="route-good"><ArrowDownRight size={14} /> Live route</span></div>
-                <button type="button" className="route-start" onClick={() => routeDestination === "a destination" ? toast.info("Search for a place first to preview a route") : toast.success(`Route preview ready for ${routeDestination}`)}><Navigation size={16} fill="currentColor" /> Preview route</button>
+                <button type="button" className="route-start" onClick={() => routeDestination === "a destination" ? toast.info("Search for a place first to preview a route") : toast.success(`Route set for ${routeDestination}`)}>
+                  Start route
+                </button>
               </div>
 
               <button type="button" className="report-fab" onClick={() => setReportOpen(true)}><AlertTriangle size={16} /><span>Report something</span><span className="report-fab__shortcut">R</span></button>
@@ -379,7 +390,7 @@ export default function Home() {
           </div>
 
           <aside className="right-panel">
-            <div className="panel-heading"><div><span className="eyebrow">Your day</span><h2>Plan the next move</h2></div><button type="button" className="panel-more" onClick={() => toast.info("More trip planning tools are coming next")}><span /><span /><span /></button></div>
+            <div className="panel-heading"><div><span className="eyebrow">Your day</span><h2>Plan the next move</h2></div><button type="button" className="panel-more" onClick={() => toast.info("More options are coming next")}>View all</button></div>
 
             <div className="smart-route-card">
               <div className="smart-route-card__top"><div className="smart-route-icon"><Zap size={17} fill="currentColor" /></div><span>Smart route</span><span className="smart-route-live">LIVE</span></div>
@@ -392,32 +403,35 @@ export default function Home() {
             <div className="saved-section">
               <div className="section-heading"><h3>Quick destinations</h3><button type="button" onClick={() => toast.info("Add a saved place from the search bar")}><Plus size={16} /> Add</button></div>
               <div className="saved-tabs" role="tablist" aria-label="Saved destinations">
-                {(["home", "work", "favorites"] as SavedTab[]).map(tab => <button type="button" key={tab} className={savedTab === tab ? "is-selected" : ""} onClick={() => setSavedTab(tab)} role="tab" aria-selected={savedTab === tab}>{tab === "home" ? <HomeIcon size={15} /> : tab === "work" ? <BriefcaseBusiness size={15} /> : <Heart size={15} />}<span>{tab === "favorites" ? "Favorites" : tab[0].toUpperCase() + tab.slice(1)}</span></button>)}
+                {(["home", "work", "favorites"] as SavedTab[]).map(tab => <button type="button" key={tab} className={savedTab === tab ? "is-selected" : ""} onClick={() => setSavedTab(tab)} role="tab" aria-selected={savedTab === tab}>{tab}</button>)}
               </div>
-              <button type="button" className="saved-place" onClick={() => activePlace.address.startsWith("Add") || activePlace.address.startsWith("Save") ? toast.info(`Search for an address to set ${activePlace.title}`) : selectDestination(activePlace.title)}><span className="saved-place__icon"><MapPin size={17} /></span><span><strong>{activePlace.title}</strong><small>{activePlace.address}</small></span><span className="saved-place__eta"><b>{activePlace.eta}</b><small>{activePlace.distance}</small></span></button>
+              <button type="button" className="saved-place" onClick={() => activePlace.address.startsWith("Add") || activePlace.address.startsWith("Save") ? toast.info(`Search for an address to save ${savedTab}`) : selectDestination(activePlace.title)}>
+                <span className="saved-place__meta"><strong>{activePlace.title}</strong><small>{activePlace.address}</small></span>
+                <span className="saved-place__distance">{activePlace.distance}</span>
+              </button>
             </div>
 
             <div className="incident-card">
-              <div className="incident-card__header"><span className="incident-card__icon"><ShieldAlert size={16} /></span><div><span className="eyebrow">Driver reports</span><strong>No nearby reports yet</strong></div></div>
+              <div className="incident-card__header"><span className="incident-card__icon"><ShieldAlert size={16} /></span><div><span className="eyebrow">Driver reports</span><strong>No nearby reports</strong></div></div>
               <p>Reports from drivers will appear here as you move.</p>
               <div className="incident-card__actions"><button type="button" onClick={() => setReportOpen(true)}><Flag size={15} /> Add a report</button></div>
             </div>
 
-            <div className="priority-card"><div className="priority-card__top"><span className="priority-badge">3</span><div><strong>Priority lane</strong><small>Be considerate, keep moving</small></div><Volume2 size={16} /></div><p>Drivers with a lower priority number may request a pass. Motion will say: <em>“Let the white Tesla behind you pass.”</em></p><button type="button" onClick={() => setReportOpen(true)}>Set your driving priority <ArrowUpRight size={15} /></button></div>
+            <div className="priority-card"><div className="priority-card__top"><span className="priority-badge">3</span><div><strong>Priority lane</strong><small>Be considerate, keep moving</small></div></div><div className="priority-card__row"><ThumbsUp size={15} /><span>Keep it clear</span></div><div className="priority-card__row"><ThumbsDown size={15} /><span>Try not to block</span></div></div>
           </aside>
         </section>
       </main>
 
-      <nav className="mobile-nav" aria-label="Mobile navigation"><button type="button" className="is-active"><Map size={18} /><span>Map</span></button><button type="button" onClick={() => toast.info("Saved places are in the right panel")}><Bookmark size={18} /><span>Saved</span></button><button type="button" onClick={() => setReportOpen(true)}><AlertTriangle size={18} /><span>Report</span></button><button type="button" onClick={handleVoice} className={voiceActive ? "is-listening" : ""}><Mic size={18} /><span>Voice</span></button></nav>
+      <nav className="mobile-nav" aria-label="Mobile navigation"><button type="button" className="is-active"><Map size={18} /><span>Map</span></button><button type="button" onClick={() => toast.info("Recent routes are coming next")}><Clock3 size={18} /><span>Recent</span></button><button type="button" onClick={() => toast.info("Saved places are coming next")}><Bookmark size={18} /><span>Saved</span></button></nav>
 
       {reportOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Report an incident">
-          <div className="report-modal"><div className="modal-heading"><div><span className="eyebrow">Driver report</span><h2>What’s happening ahead?</h2></div><button type="button" className="icon-button" onClick={() => setReportOpen(false)} aria-label="Close report dialog"><X size={18} /></button></div>
-            <div className="report-options">{reportOptions.map(option => { const Icon = option.icon; return <button type="button" key={option.value} className={reportType === option.value ? "is-selected" : ""} onClick={() => setReportType(option.value)}><Icon size={18} /><span>{option.label}</span>{reportType === option.value && <Check size={15} />}</button>; })}</div>
+          <div className="report-modal"><div className="modal-heading"><div><span className="eyebrow">Driver report</span><h2>What’s happening ahead?</h2></div><button type="button" className="close-button" onClick={() => setReportOpen(false)} aria-label="Close report dialog"><X size={16} /></button></div>
+            <div className="report-options">{reportOptions.map(option => { const Icon = option.icon; return <button type="button" key={option.value} className={reportType === option.value ? "is-selected" : ""} onClick={() => setReportType(option.value)}><span className="report-option__icon"><Icon size={15} /></span><span>{option.label}</span><Check size={15} /></button>; })}</div>
             <label className="field-label">Priority for this trip <span>Lower number gets the pass request first</span></label>
-            <div className="priority-options">{priorityOptions.map(option => <button type="button" key={option.value} className={priority === option.value ? "is-selected" : ""} onClick={() => setPriority(option.value)}><span className="priority-option-number" style={{ background: option.color }}>{option.value}</span><span><strong>{option.label}</strong><small>{option.caption}</small></span></button>)}</div>
-            <label className="field-label" htmlFor="report-note">Add a note <span>Optional</span></label><textarea id="report-note" value={reportNote} onChange={event => setReportNote(event.target.value)} placeholder="e.g. blocking the right lane" rows={2} />
-            <div className="modal-footer"><span><MapPin size={14} /> Current map location</span><button type="button" className="route-start" onClick={submitDriverReport} disabled={submitReport.isPending}><Flag size={16} /> {submitReport.isPending ? "Sharing…" : "Share report"}</button></div>
+            <div className="priority-options">{priorityOptions.map(option => <button type="button" key={option.value} className={priority === option.value ? "is-selected" : ""} onClick={() => setPriority(option.value)}><span className="priority-pill" style={{ background: option.color }}>{option.label}</span><small>{option.caption}</small></button>)}</div>
+            <label className="field-label" htmlFor="report-note">Add a note <span>Optional</span></label><textarea id="report-note" value={reportNote} onChange={event => setReportNote(event.target.value)} placeholder="Slow traffic, debris, roadwork..." /></n>
+            <div className="modal-footer"><span><MapPin size={14} /> Current map location</span><button type="button" className="route-start" onClick={submitDriverReport} disabled={submitReport.isPending}>{submitReport.isPending ? "Sending..." : "Send report"}</button></div>
           </div>
         </div>
       )}
